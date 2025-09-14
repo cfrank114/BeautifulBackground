@@ -79,6 +79,14 @@
             transition: color 1s ease;
         }
 
+        .date-display {
+            font-size: 22px;
+            font-weight: bold;
+            color: rgb(var(--text-color));
+            text-align: center;
+            transition: color 1s ease;
+        }
+
         .schedule-table {
             width: 100%;
             border-collapse: collapse;
@@ -148,15 +156,14 @@
         </div>
         <div class="container-sepertator"></div>
         <div class="time-container universal-container">
-            <div class="time-display-title container-title">时间</div>
-            <div class="container-seperator"></div>
             <div class="time-display"></div>
+            <div class="date-display"></div>
         </div>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.2/color-thief.umd.js"></script>
     <script>
         // 动态背景设置
-        const jsonDataUrl = 'https://bing.biturl.top/?resolution=1920';
+        const jsonDataUrl = 'https://bing.biturl.top/?resolution=3840';
 
         // 使用CSS变量存储主题色[5](@ref)
         function ColorMulyiplier(rgbArray, multiplier) {
@@ -190,16 +197,28 @@
             // 计算文本颜色（根据亮度决定黑白）[1](@ref)
             const brightness = (rgbArray[0] * 299 + rgbArray[1] * 587 + rgbArray[2] * 114) / 1000;
             let basetextColor = reduceContrast(rgbArray,-0.05)
+            let no_sc_col = rgbArray.slice();
+            let th_col = rgbArray.slice();
             if (brightness > 128) {
-                basetextColor = ColorMulyiplier(basetextColor, 0.5)
+                basetextColor = ColorMulyiplier(basetextColor, 0.2);
+                no_sc_col = ColorMulyiplier(no_sc_col,0.3)
+                no_sc_col = reduceContrast(no_sc_col,0.3);
+                th_col = reduceContrast(rgbArray, 0.8);
+                h_col = ColorMulyiplier(th_col,1.6);
             } else {
-                basetextColor = ColorMulyiplier(basetextColor, (brightness**2)/100);
-                basetextColor = reduceContrast(basetextColor,0.5)
+                basetextColor = reduceContrast(basetextColor,0.5);
+                basetextColor = ColorMulyiplier(basetextColor, 2.8);
+                no_sc_col = reduceContrast(no_sc_col,0.8);
+                no_sc_col = ColorMulyiplier(no_sc_col,1.8)
+                th_col = reduceContrast(rgbArray, 0.2);
+                th_col = ColorMulyiplier(th_col,1);
+                
+                
             }
             document.documentElement.style.setProperty('--dominant-color', rgbArray.join(','));
             document.documentElement.style.setProperty('--text-color', basetextColor.join(','));
-            let no_sc_col = ColorMulyiplier(basetextColor,brightness>128?0.4:1.6);
-            no_sc_col = reduceContrast(basetextColor, 0.3);
+            
+            
 
 
             // 应用颜色到特定元素
@@ -210,6 +229,10 @@
             const noSchElements = document.getElementsByClassName('no-schedule');
             for (let i = 0; i < noSchElements.length; i++) {
                 noSchElements[i].style.color = `rgb(${no_sc_col.join(',')})`;
+            }
+            const thElements = document.getElementsByTagName('th');
+            for (let i = 0; i < thElements.length; i++) {
+                thElements[i].style.background = `rgba(${th_col.join(',')},0.2)`;
             }
 
             console.log('主题色已应用:', rgbArray, '文字颜色:', basetextColor);
@@ -358,11 +381,13 @@
                     .then(data => {
                         if (data && data.url) {
                             const bgImage = document.querySelector('.bg-image');
-                            bgImage.style.backgroundImage = `url(${data.url})`;
+                            let imgurl = data.url;
+                            
+                            bgImage.style.backgroundImage = `url(${imgurl})`;
 
                             const img = new Image();
                             img.crossOrigin = 'anonymous';
-                            img.src = data.url;
+                            img.src = imgurl;
 
                             img.onload = function () {
                                 const colorThief = new ColorThief();
@@ -416,10 +441,11 @@
                 // yourOperations(defaultColor);
             }
         })();
-        async function startDynamicTime(selector) {
+        async function startDynamicTime(timeselector,dateselector) {
             try {
                 // 获取目标元素
-                const timeElement = document.querySelector(selector);
+                const timeElement = document.querySelector(timeselector);
+                const dateElement = document.querySelector(dateselector)
 
                 if (!timeElement) {
                     throw new Error(`未找到选择器为 "${selector}" 的元素`);
@@ -433,12 +459,16 @@
                     const hours = now.getHours().toString().padStart(2, '0');
                     const minutes = now.getMinutes().toString().padStart(2, '0');
                     const seconds = now.getSeconds().toString().padStart(2, '0');
+                    const month = (now.getMonth()+1).toString();
+                    const day = now.getDate().toString();
 
                     // 格式化时间字符串
                     const timeString = `${hours}:${minutes}:${seconds}`;
+                    const dateString = `${month}/${day}`;
 
                     // 更新元素内容
                     timeElement.textContent = timeString;
+                    dateElement.textContent = dateString;
                 };
 
                 // 立即更新一次时间
@@ -461,7 +491,7 @@
 
         // 页面加载完成后启动时间显示
         document.addEventListener('DOMContentLoaded', () => {
-            startDynamicTime('.time-display')
+            startDynamicTime('.time-display','.date-display')
                 .catch(error => {
                     console.error('时间显示功能初始化失败:', error);
                 });
