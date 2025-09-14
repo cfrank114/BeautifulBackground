@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>动态背景与课程表</title>
+    <style>
+        :root {
+            --dominant-color: 255, 255, 255;
+            /* 默认白色 */
+            --text-color: 0, 0, 0;
+            /* 默认黑色文字 */
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            font-family: '微软雅黑', sans-serif;
+            transition: background-color 1s ease, color 1s ease;
+            background-color: #f0f0f0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .bg-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            z-index: -1;
+            transition: opacity 1s ease;
+        }
+
+        .main-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 400px;
+            bottom: 20px;
+            transition: all 0.5s ease;
+        }
+
+        /* 课程表容器样式 */
+        .universal-container {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(50px);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            z-index: 10;
+        }
+
+        .container-sepertator {
+            height: 20px;
+        }
+
+        .container-title {
+            font-size: 28px;
+            font-weight: bold;
+            color: rgb(var(--text-color));
+            text-align: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+            transition: color 1s ease;
+        }
+
+        .time-display {
+            font-size: 28px;
+            font-weight: bold;
+            color: rgb(var(--text-color));
+            text-align: center;
+            transition: color 1s ease;
+        }
+
+        .schedule-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .schedule-table th {
+            background: rgba(52, 152, 219, 0.2);
+            color: rgb(var(--text-color));
+            padding: 8px;
+            text-align: left;
+            font-size: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .schedule-table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgb(var(--text-color));
+            font-size: 20px;
+        }
+
+        .schedule-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .schedule-table .time-column {
+            font-weight: 600;
+            width: 50%;
+        }
+
+        .no-schedule {
+            text-align: center;
+            color: #7f8c8d;
+            font-style: italic;
+            padding: 15px 0;
+        }
+
+        /* 响应式调整 */
+        @media (max-width: 768px) {
+            .main-container {
+                width: 280px;
+                top: 10px;
+                right: 10px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .main-container {
+                width: 90%;
+                left: 5%;
+                right: 5%;
+                top: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 移除了错误的逗号 -->
+    <div class="bg-image" id="bg-image"></div>
+
+    <!-- 课程表容器 -->
+    <div class="main-container">
+        <div class="schedule-container universal-container">
+            <div class="weekday-display container-title" id="weekdayDisplay"></div>
+            <div id="scheduleContent"></div>
+        </div>
+        <div class="container-sepertator"></div>
+        <div class="time-container universal-container">
+            <div class="time-display-title container-title">时间</div>
+            <div class="container-seperator"></div>
+            <div class="time-display"></div>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.2/color-thief.umd.js"></script>
+    <script>
+        // 动态背景设置
+        const jsonDataUrl = 'https://bing.biturl.top/?resolution=1920';
+
+        // 使用CSS变量存储主题色[5](@ref)
+        function ColorMulyiplier(rgbArray, multiplier) {
+            let color = rgbArray.slice();
+            for (var i = 0; i < rgbArray.length; i++) {
+                color[i] = Math.round(rgbArray[i] * multiplier);
+            }
+            return color;
+        }
+
+        function reduceContrast(rgb, ratio = 0.2) {
+            // 确保ratio在合理范围内
+            // ratio = Math.max(0, Math.min(1, ratio));
+
+            // 计算混合的中性灰（使用与原始颜色相同的亮度或固定灰阶）
+            const grayValue = 128; // 也可用 0.299 * r + 0.587 * g + 0.114 * b 计算亮度
+            // const grayValue = Math.round(0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]); // 按亮度值混合
+
+            // 将每个通道与灰色按比例混合
+            const newR = Math.round(rgb[0] * (1 - ratio) + grayValue * ratio);
+            const newG = Math.round(rgb[1] * (1 - ratio) + grayValue * ratio);
+            const newB = Math.round(rgb[2] * (1 - ratio) + grayValue * ratio);
+
+            return [newR, newG, newB];
+        }
+
+
+        function applyThemeColor(rgbArray) {
+            if (!rgbArray || !Array.isArray(rgbArray) || rgbArray.length !== 3) return;
+
+            // 计算文本颜色（根据亮度决定黑白）[1](@ref)
+            const brightness = (rgbArray[0] * 299 + rgbArray[1] * 587 + rgbArray[2] * 114) / 1000;
+            let basetextColor = reduceContrast(rgbArray,-0.05)
+            if (brightness > 128) {
+                basetextColor = ColorMulyiplier(basetextColor, 0.5)
+            } else {
+                basetextColor = ColorMulyiplier(basetextColor, (brightness**2)/100);
+                basetextColor = reduceContrast(basetextColor,0.5)
+            }
+            document.documentElement.style.setProperty('--dominant-color', rgbArray.join(','));
+            document.documentElement.style.setProperty('--text-color', basetextColor.join(','));
+            let no_sc_col = ColorMulyiplier(basetextColor,brightness>128?0.4:1.6);
+            no_sc_col = reduceContrast(basetextColor, 0.3);
+
+
+            // 应用颜色到特定元素
+            const titleElements = document.getElementsByClassName('container-title');
+            for (let i = 0; i < titleElements.length; i++) {
+                titleElements[i].style.color = `rgb(${basetextColor.join(',')})`;
+            }
+            const noSchElements = document.getElementsByClassName('no-schedule');
+            for (let i = 0; i < noSchElements.length; i++) {
+                noSchElements[i].style.color = `rgb(${no_sc_col.join(',')})`;
+            }
+
+            console.log('主题色已应用:', rgbArray, '文字颜色:', basetextColor);
+        }
+
+        // 课程表数据（保持不变）
+        const times = ["7:30-8:00", "8:00-8:40", "8:50-9:30", "9:30-10:00", "10:50-11:30", "10:50-11:30", "11:40-12:20", "12:20-14:10", "14:10-14:50", "15:05-15:45", "16:00-16:40", "16:55-17:35", "17:35-18:30", "18:30-19:40", "19:50-20:30", "20:40-21:20"]
+        const timetable = {
+            "周一": [
+                "早间 升旗",
+                "第一节 数学",
+                "第二节 历史",
+                "课间操",
+                "第三节 英语",
+                "第四节 化学",
+                "第五节 语文",
+                "午休",
+                "第六节 信息",
+                "第七节 物理",
+                "第八节 体育",
+                "第九节 政治",
+                "晚餐与自由活动",
+                "晚一",
+                "晚二",
+                "晚三"]
+            ,
+            "周二": [
+                "早间 英语",
+                "第一节 英语",
+                "第二节 英语",
+                "课间操",
+                "第三节 数学",
+                "第四节 物理",
+                "第五节 政治",
+                "午休",
+                "第六节 语文",
+                "第七节 化学",
+                "第八节 自习",
+                "第九节 自习",
+                "晚餐与自由活动",
+                "晚一",
+                "晚二",
+                "晚三"
+            ],
+            "周三": [
+                "早间 语文",
+                "第一节 语文",
+                "第二节 语文",
+                "课间操",
+                "第三节 体育",
+                "第四节 数学",
+                "第五节 英语",
+                "午休",
+                "第六节 历史",
+                "第七节 政治",
+                "第八节 自习",
+                "第九节 自习",
+                "晚餐与自由活动",
+                "晚一",
+                "晚二",
+                "晚三"
+            ],
+            "周四": [
+                "早间 英语",
+                "第一节 英语",
+                "第二节 历史",
+                "课间操",
+                "第三节 语文",
+                "第四节 数学",
+                "第五节 数学",
+                "午休",
+                "第六节 化学",
+                "第七节 体育",
+                "第八节 音乐/美术",
+                "第九节 物理",
+                "晚餐与自由活动",
+                "晚一",
+                "晚二",
+                "晚三"
+            ],
+            "周五": [
+                "早间 语文",
+                "第一节 语文",
+                "第二节 数学",
+                "课间操",
+                "第三节 物理",
+                "第四节 政治",
+                "第五节 化学",
+                "午休",
+                "第六节 英语",
+                "第七节 历史",
+                "第八节 自习",
+                "放学",
+            ]
+        };
+
+        // 获取当前日期和星期
+        const now = new Date();
+        const day = now.getDay();
+        const weekdays = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+        const currentWeekday = weekdays[day];
+
+        // 更新星期显示
+        document.getElementById('weekdayDisplay').textContent = `今天是${currentWeekday}`;
+
+        // 检查是否是工作日（周一至周五）
+        if (day >= 1 && day <= 5) {
+            const scheduleContent = document.getElementById('scheduleContent');
+            const schedule = timetable[currentWeekday];
+
+            let tableHTML = `
+                <table class="schedule-table">
+                    <thead>
+                        <tr>
+                            <th>时间</th>
+                            <th>课程安排</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            for (let i = 0; i < schedule.length; i++) {
+                tableHTML += `
+                    <tr>
+                        <td class="time-column">${times[i]}</td>
+                        <td>${schedule[i]}</td>
+                    </tr>
+                `;
+            }
+
+            tableHTML += `
+                    </tbody>
+                </table>
+            `;
+
+            scheduleContent.innerHTML = tableHTML;
+        } else {
+            document.getElementById('scheduleContent').innerHTML = `
+                <div class="no-schedule">今天是休息日</div>
+            `;
+        }
+        function bgimg(jsonDataUrl) {
+            return new Promise((resolve, reject) => {
+                fetch(jsonDataUrl)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data && data.url) {
+                            const bgImage = document.querySelector('.bg-image');
+                            bgImage.style.backgroundImage = `url(${data.url})`;
+
+                            const img = new Image();
+                            img.crossOrigin = 'anonymous';
+                            img.src = data.url;
+
+                            img.onload = function () {
+                                const colorThief = new ColorThief();
+                                try {
+                                    // 成功时，用resolve传递结果
+                                    const dominantColor = colorThief.getColor(img, 5);
+                                    console.log('提取的主题色:', dominantColor);
+                                    resolve(dominantColor);
+                                } catch (error) {
+                                    console.error('颜色提取失败:', error);
+                                    // 失败时，用reject传递错误，或者resolve一个默认值
+                                    reject(error);
+                                    // 或者如果不想阻断流程，可以resolve默认颜色
+                                    // resolve([255, 255, 255]);
+                                }
+                            };
+
+                            img.onerror = function () {
+                                console.error('图片加载失败');
+                                reject(new Error('图片加载失败'));
+                                // 或者 resolve([255, 255, 255]);
+                            };
+                        } else {
+                            reject(new Error('JSON数据中未找到有效的URL'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('获取背景图片失败:', error);
+                        reject(error);
+                    });
+            });
+        }
+
+        // 2. 使用async/await或.then()来等待操作完成
+        (async function () {
+            try {
+                // 等待Promise完成，并获取resolve传递的值（dominantColor数组）
+                const dominantColor = await bgimg(jsonDataUrl);
+
+                // 此处的dominantColor已经是有效值，第一项肯定不为-1
+                console.log('成功获取颜色，执行后续操作', dominantColor);
+                // 在这里执行你需要在获取主题色后进行的操作
+                // 例如：应用主题色、更新UI等
+                applyThemeColor(dominantColor)
+
+            } catch (error) {
+                console.error('在处理过程中发生错误:', error);
+                // 处理错误，例如使用默认颜色执行操作
+                const defaultColor = [255, 255, 255];
+                console.log('使用默认颜色执行操作', defaultColor);
+                // yourOperations(defaultColor);
+            }
+        })();
+        async function startDynamicTime(selector) {
+            try {
+                // 获取目标元素
+                const timeElement = document.querySelector(selector);
+
+                if (!timeElement) {
+                    throw new Error(`未找到选择器为 "${selector}" 的元素`);
+                }
+
+                // 更新时间函数
+                const updateTime = () => {
+                    const now = new Date();
+
+                    // 获取时、分、秒并确保两位数显示
+                    const hours = now.getHours().toString().padStart(2, '0');
+                    const minutes = now.getMinutes().toString().padStart(2, '0');
+                    const seconds = now.getSeconds().toString().padStart(2, '0');
+
+                    // 格式化时间字符串
+                    const timeString = `${hours}:${minutes}:${seconds}`;
+
+                    // 更新元素内容
+                    timeElement.textContent = timeString;
+                };
+
+                // 立即更新一次时间
+                updateTime();
+
+                // 设置定时器，每秒更新一次
+                // 返回一个Promise，该Promise不会resolve，保持定时器运行
+                return new Promise((resolve) => {
+                    const intervalId = setInterval(updateTime, 1000);
+
+                    // 可以在这里保存intervalId以便后续清除
+                    timeElement._intervalId = intervalId;
+                });
+
+            } catch (error) {
+                console.error('启动动态时间显示时出错:', error);
+                throw error; // 重新抛出错误以便外部处理
+            }
+        }
+
+        // 页面加载完成后启动时间显示
+        document.addEventListener('DOMContentLoaded', () => {
+            startDynamicTime('.time-display')
+                .catch(error => {
+                    console.error('时间显示功能初始化失败:', error);
+                });
+        });
+
+
+    </script>
+</body>
+
+</html>
