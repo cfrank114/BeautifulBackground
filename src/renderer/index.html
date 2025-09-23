@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>动态背景与课程表</title>
+    <style>
+        :root {
+            --dominant-color: 255, 255, 255;
+            /* 默认白色 */
+            --text-color: 0, 0, 0;
+            text-align: center;
+            /* 默认黑色文字 */
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            font-family: '微软雅黑', sans-serif;
+            transition: background-color 1s ease, color 1s ease;
+            background-color: #f0f0f0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .bg-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            z-index: -1;
+            transition: opacity 1s ease;
+        }
+
+        .main-container {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 350px;
+            bottom: 10px;
+            transition: all 0.5s ease;
+        }
+
+        /* 课程表容器样式 */
+        .universal-container {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(50px);
+            border-radius: 10px;
+            padding: 10px;
+            box-shadow: 0 4px 16px rgba(170, 169, 169, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            z-index: 10;
+            max-height: calc(100vh - 20px);
+            overflow-y: auto;
+        }
+
+        .container-sepertator {
+            height: 10px;
+        }
+
+        .small-sepertator {
+            height: 5px;
+        }
+
+        .container-title {
+            font-size: 22px;
+            font-weight: bold;
+            color: rgb(var(--text-color));
+            text-align: center;
+            margin-bottom: 8px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+            transition: color 1s ease;
+        }
+
+        .time-display {
+            font-size: 22px;
+            font-weight: bold;
+            color: rgb(var(--text-color));
+            text-align: center;
+            transition: color 1s ease;
+        }
+
+        .date-display {
+            font-size: 18px;
+            font-weight: bold;
+            color: rgb(var(--text-color));
+            text-align: center;
+            transition: color 1s ease;
+        }
+
+        .schedule-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 18px;
+        }
+
+        .schedule-table th {
+            background: rgba(52, 152, 219, 0.2);
+            color: rgb(var(--text-color));
+            padding: 6px;
+            font-size: 18px;
+            backdrop-filter: blur(10px);
+        }
+
+        .schedule-table td {
+            padding: 6px 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgb(var(--text-color));
+            font-size: 18px;
+        }
+
+        .schedule-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .schedule-table .time-column {
+            font-weight: 600;
+            width: 40%;
+        }
+
+        .no-schedule {
+            text-align: center;
+            color: #7f8c8d;
+            font-style: italic;
+            padding: 10px 0;
+            font-size: 14px;
+        }
+
+        /* 响应式调整 */
+        @media (max-width: 768px) {
+            .main-container {
+                width: 280px;
+                top: 10px;
+                right: 10px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .main-container {
+                width: 90%;
+                left: 5%;
+                right: 5%;
+                top: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 移除了错误的逗号 -->
+    <div class="bg-image" id="bg-image"></div>
+
+    <!-- 课程表容器 -->
+    <div class="main-container">
+        <div class="schedule-container universal-container">
+            <div class="weekday-display container-title" id="weekdayDisplay"></div>
+            <div id="scheduleContent"></div>
+        </div>
+        <div class="container-sepertator"></div>
+        <div class="time-container universal-container">
+            <div class="time-display"></div>
+            <div class="small-sepertator"></div>
+            <div class="date-display"></div>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.2/color-thief.umd.js"></script>
+    <script src="renderer.js"></script>
+</body>
+
+</html>

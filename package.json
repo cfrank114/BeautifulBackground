@@ -1,0 +1,14 @@
+{
+  "name": "beautiful-background",
+  "version": "1.0.0",
+  "description": "An Electron app with beautiful background and class schedule",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron ."
+  },
+  "dependencies": {
+    "electron": "^30.0.0",
+    "electron-packager": "^17.1.2"
+  }
+}
